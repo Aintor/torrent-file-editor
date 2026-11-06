@@ -26,7 +26,7 @@ Q_IMPORT_PLUGIN(QJpegPlugin)
 HANDLE hConsole = NULL;
 #endif
 
-#if defined(Q_OS_MAC) && defined(ENABLE_SPARKLE)
+#if defined(Q_OS_MACOS) && defined(ENABLE_SPARKLE)
 #include "cocoainitializer.h"
 #include "sparkleautoupdater.h"
 #endif
@@ -255,7 +255,7 @@ int main(int argc, char *argv[])
         a.setMainWindow(&w);
         w.show();
 
-#if defined(Q_OS_MAC) && defined(ENABLE_SPARKLE)
+#if defined(Q_OS_MACOS) && defined(ENABLE_SPARKLE)
         CocoaInitializer initializer;
         SparkleAutoUpdater *updater = new SparkleAutoUpdater;
         updater->checkForUpdates();

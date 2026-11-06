@@ -174,7 +174,7 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowIcon(QIcon(QStringLiteral(":/icons/unix/app_32.png")));
 #endif
 
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
     // Show menu bar only on Mac OS X.
     // Menu bar on Mac OS is persistent. No sense to not use it.
     ui->menuBar->hide();

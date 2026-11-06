@@ -8,7 +8,7 @@
 
 class BencodeModel;
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 class QSizeGrip;
 #endif
 
@@ -35,20 +35,20 @@ public slots:
 signals:
     void foundItem(const QModelIndex &index);
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 protected:
     void resizeEvent(QResizeEvent *event);
 #endif
 
 private:
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     void updateSizeGripPos();
 #endif
     Ui::SearchDlg *ui;
     QModelIndexList _searchList;
     int _searchIndex;
     BencodeModel *_model;
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     QSizeGrip *_sizeGrip;
 #endif
 };

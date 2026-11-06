@@ -5,7 +5,7 @@
 #include "bencodemodel.h"
 #include "ui_searchdlg.h"
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 #include <QSizeGrip>
 #endif
 
@@ -21,7 +21,7 @@ SearchDlg::SearchDlg(BencodeModel *model, QWidget *parent)
     , _searchList()
     , _searchIndex(-1)
     , _model(model)
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     , _sizeGrip(new QSizeGrip(this))
 #endif
 {
@@ -33,7 +33,7 @@ SearchDlg::SearchDlg(BencodeModel *model, QWidget *parent)
             SIGNAL(rowsMoved(QModelIndex, int, int, QModelIndex, int)),
             SLOT(resetSearchList())); // clazy:exclude=connect-not-normalized
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     // Workaround. Qt has no size grip on Mac OS X. Bug?
     setSizeGripEnabled(false);
     _sizeGrip->setFixedSize(20, 20);
@@ -215,7 +215,7 @@ void SearchDlg::replaceAll()
     ui->lblItemsFound->setText(resStr);
 }
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 void SearchDlg::resizeEvent(QResizeEvent *event)
 {
     QDialog::resizeEvent(event);
