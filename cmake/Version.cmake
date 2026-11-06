@@ -134,6 +134,7 @@ if(WIN32)
 endif()
 file(WRITE appversion ${APP_VERSION})
 if (APPLE)
+  configure_file("${CMAKE_BINARY_DIR}/MacOSXBundleInfo.plist.in" "${CMAKE_BINARY_DIR}/Info.plist")
   configure_file("${CMAKE_BINARY_DIR}/MacOSXBundleInfo.plist.in" "${CMAKE_BINARY_DIR}/Torrent File Editor.app/Contents/Info.plist")
   file(WRITE "${CMAKE_BINARY_DIR}/CPackProperties.cmake"
     "set(CPACK_PACKAGE_VERSION \"${APP_VERSION}\")\n"

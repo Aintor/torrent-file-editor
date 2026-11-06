@@ -1,0 +1,44 @@
+name: Build macOS ARM64
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies via Homebrew
+        run: |
+          brew install cmake qt
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DQT6_BUILD=ON
+
+      - name: Build application
+        run: |
+          cmake --build build --config Release -j$(sysctl -n hw.ncpu)
+
+      - name: Package DMG
+        run: |
+          cd build
+          cpack -G DragNDrop -V
+
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Torrent-File-Editor-macOS-arm64-dmg
+          path: build/*.dmg

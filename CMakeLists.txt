@@ -91,7 +91,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic")
 
 # If building a release version, make most warnings into errors
 if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDbInfo)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wno-error=deprecated-declarations")
 
   # Earlier versions of GCC might not recognise certain pragma directives in the C++ code
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=pragmas")
@@ -334,13 +334,17 @@ if(WIN32)
 endif()
 
 if(APPLE)
-  list(APPEND SOURCES
-    cocoainitializer.mm
-    sparkleautoupdater.mm
-  )
+  option(ENABLE_SPARKLE "Enable Sparkle auto-updater" OFF)
+  if(ENABLE_SPARKLE)
+    list(APPEND SOURCES
+      cocoainitializer.mm
+      sparkleautoupdater.mm
+    )
 
-  find_package(Sparkle REQUIRED)
-  include_directories(${SPARKLE_INCLUDE_DIR})
+    find_package(Sparkle REQUIRED)
+    include_directories(${SPARKLE_INCLUDE_DIR})
+    add_definitions(-DENABLE_SPARKLE)
+  endif()
 endif()
 
 set(RESOURCES
@@ -447,7 +451,11 @@ else()
 endif()
 
 if(APPLE)
-  target_link_libraries(${EXE_NAME} ${SPARKLE_LIBRARY} "-framework AppKit")
+  if(ENABLE_SPARKLE)
+    target_link_libraries(${EXE_NAME} ${SPARKLE_LIBRARY} "-framework AppKit")
+  else()
+    target_link_libraries(${EXE_NAME} "-framework AppKit")
+  endif()
 endif()
 
 
@@ -476,79 +484,53 @@ if(APPLE)
   )
   configure_file(MacOSXBundleInfo.plist.in "${CMAKE_BINARY_DIR}/MacOSXBundleInfo.plist.in")
 
-  # Install app icon
+  # Install app icon and Info.plist
   install(FILES icons/application.icns DESTINATION "${PROJECT_NAME}.app/Contents/Resources" COMPONENT Runtime)
+  install(FILES "${CMAKE_BINARY_DIR}/Info.plist" DESTINATION "${PROJECT_NAME}.app/Contents" COMPONENT Runtime)
 
-  # Install needed Qt plugins by copying each pluging separately
-  find_package(Qt5PrintSupport REQUIRED)
-  set(PLATFORM_PLUGINS Qt5::QCocoaIntegrationPlugin)
-  set(IMAGE_PLUGINS Qt5::QICNSPlugin Qt5::QSvgPlugin)
-  set(PRINTSUPPORT_PLUGINS Qt5::QCocoaPrinterSupportPlugin)
-  set(PLUGINS_DEST_PATH "${PROJECT_NAME}.app/Contents/PlugIns")
-  set(TRANSLATIONS_DEST_PATH "${PROJECT_NAME}.app/Contents/Resources/translations")
-
-  foreach(plugin ${PLATFORM_PLUGINS})
-    get_target_property(_loc ${plugin} LOCATION)
-    install(FILES "${_loc}" DESTINATION ${PLUGINS_DEST_PATH}/platforms/ COMPONENT Runtime)
-  endforeach()
-
-  foreach(plugin ${IMAGE_PLUGINS})
-    get_target_property(_loc ${plugin} LOCATION)
-    install(FILES "${_loc}" DESTINATION ${PLUGINS_DEST_PATH}/imageformats/ COMPONENT Runtime)
-  endforeach()
-
-  foreach(plugin ${PRINTSUPPORT_PLUGINS})
-    get_target_property(_loc ${plugin} LOCATION)
-    install(FILES "${_loc}" DESTINATION ${PLUGINS_DEST_PATH}/printsupport/ COMPONENT Runtime)
-  endforeach()
-
-  if(TARGET Qt5::QMacStylePlugin)
-    get_target_property(_loc Qt5::QMacStylePlugin LOCATION)
-    install(FILES "${_loc}" DESTINATION ${PLUGINS_DEST_PATH}/styles/ COMPONENT Runtime)
+  if(ENABLE_SPARKLE)
+    # Install public key for Sparkle Updater
+    install(FILES "dsa_pub.pem" DESTINATION "${PROJECT_NAME}.app/Contents/Resources" COMPONENT Runtime)
   endif()
 
-  # Install public key for Sparkle Updater
-  install(FILES "dsa_pub.pem" DESTINATION "${PROJECT_NAME}.app/Contents/Resources" COMPONENT Runtime)
+  if(QT6_BUILD)
+    get_target_property(QT_QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
+  elseif(QT5_BUILD)
+    get_target_property(QT_QMAKE_EXECUTABLE Qt5::qmake IMPORTED_LOCATION)
+  endif()
 
-  # Install qt.conf file
-  # Qt can't find plugins in standard path on case-sensetive file system
-  # Write correct case-sensetive folder name in qt.conf file
-  install(FILES "qt.conf" DESTINATION "${PROJECT_NAME}.app/Contents/Resources" COMPONENT Runtime)
+  if(QT_QMAKE_EXECUTABLE)
+    get_filename_component(QT_BIN_DIR "${QT_QMAKE_EXECUTABLE}" DIRECTORY)
+    find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${QT_BIN_DIR}")
 
-  # Now the work of copying dependencies into the bundle/package
-  # The quotes are escaped and variables to use at install time have their $ escaped
-  # An alternative is the do a configure_file() on a script and use install(SCRIPT  ...).
-  # Note that the image plugins depend on QtSvg and QtXml, and it got those copied
-  # over.
-  get_target_property(QT_LIBRARY_DIR Qt5::Core LOCATION)
-  while(NOT ${QT_LIBRARY_DIR} MATCHES "lib$")
-    get_filename_component(QT_LIBRARY_DIR ${QT_LIBRARY_DIR} DIRECTORY)
-  endwhile()
+    execute_process(
+      COMMAND "${QT_QMAKE_EXECUTABLE}" -query QT_INSTALL_TRANSLATIONS
+      OUTPUT_VARIABLE QT_TRANSLATIONS_DIR
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+  endif()
 
+  set(TRANSLATIONS_DEST_PATH "${PROJECT_NAME}.app/Contents/Resources/translations")
   foreach(l ${LANGS})
-    # In Qt lacks some languages
-    if(EXISTS "${QT_LIBRARY_DIR}/../translations/qtbase_${l}.qm")
-      install(FILES "${QT_LIBRARY_DIR}/../translations/qtbase_${l}.qm" DESTINATION ${TRANSLATIONS_DEST_PATH} COMPONENT Runtime)
+    if(QT_TRANSLATIONS_DIR AND EXISTS "${QT_TRANSLATIONS_DIR}/qtbase_${l}.qm")
+      install(FILES "${QT_TRANSLATIONS_DIR}/qtbase_${l}.qm" DESTINATION ${TRANSLATIONS_DEST_PATH} COMPONENT Runtime)
     endif()
   endforeach()
 
-  SET(APPS "\${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app")
+  set(APPS "\${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app")
   install(CODE "
-    file(GLOB_RECURSE QTPLUGINS
-      \"\${CMAKE_INSTALL_PREFIX}/${PLUGINS_DEST_PATH}/*${CMAKE_SHARED_LIBRARY_SUFFIX}\"
-    )
-    include(BundleUtilities)
-    fixup_bundle(\"${APPS}\" \"\${QTPLUGINS}\" \"${QT_LIBRARY_DIR};${SPARKLE_LIBRARY}\")
-    file(GLOB BINARIES
-      \"${APPS}/Contents/Frameworks/*.framework\"
-      \"${APPS}/Contents/Frameworks/Sparkle.framework/Resources/Autoupdate.app\"
-      \"${APPS}/Contents/MacOS/*.dylib\"
-      \"${APPS}/Contents/PlugIns/*.dylib\"
-      \"${APPS}/Contents/PlugIns/*/*.dylib\"
-    )
+    if(EXISTS \"${MACDEPLOYQT_EXECUTABLE}\")
+      execute_process(
+        COMMAND \"${MACDEPLOYQT_EXECUTABLE}\" \"${APPS}\" -always-overwrite
+        RESULT_VARIABLE MACDEPLOYQT_RESULT
+      )
+      if(NOT MACDEPLOYQT_RESULT EQUAL 0)
+        message(FATAL_ERROR \"macdeployqt failed with exit code \${MACDEPLOYQT_RESULT}\")
+      endif()
+    endif()
+
     execute_process(
-      COMMAND codesign --deep -f -s \"Ivan Romanov\" \${BINARIES} \"${APPS}\"
-      WORKING_DIRECTORY \"${APPS}\"
+      COMMAND codesign --force --deep -s - \"${APPS}\"
       RESULT_VARIABLE CODESIGN_RESULT
       OUTPUT_VARIABLE CODESIGN_OUT
       ERROR_VARIABLE CODESIGN_ERR
@@ -559,7 +541,6 @@ if(APPLE)
     if(NOT CODESIGN_RESULT EQUAL 0)
       message(FATAL_ERROR \"Code signing failed with exit code \${CODESIGN_RESULT}\nstdout:\${CODESIGN_OUT}\nstderr:\${CODESIGN_ERR}\")
     endif()
-
     " COMPONENT Runtime
   )
 
@@ -568,7 +549,6 @@ if(APPLE)
   # And then there's ways to customize this as well
   set(CPACK_GENERATOR "DragNDrop")
   set(CPACK_DMG_VOLUME_NAME ${PROJECT_NAME})
-  set(CPACK_DMG_DS_STORE_SETUP_SCRIPT "${CMAKE_SOURCE_DIR}/CMakeDMGSetup.scpt")
   set(CPACK_DMG_BACKGROUND_IMAGE "${CMAKE_SOURCE_DIR}/DS_Background.png")
   include(CPack)
 

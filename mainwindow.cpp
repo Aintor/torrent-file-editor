@@ -288,7 +288,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(_bencodeModel, SIGNAL(modelReset()), SLOT(updateTitle()));
 
     ui->cmbTranslation->hide();
-    _showTranslations = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_T), this, SLOT(showTranslations()));
+    _showTranslations = new QShortcut(QKeySequence(Qt::ControlModifier | Qt::Key_T), this, SLOT(showTranslations()));
 
     changeTranslation(-1);
 }
@@ -1395,7 +1395,7 @@ QString MainWindow::smartSize(qulonglong size)
         res.chop(1);
     }
 
-    if (res.right(1)[0] == QLocale::system().decimalPoint()) {
+    if (res.endsWith(QLocale::system().decimalPoint())) {
         res.chop(1);
     }
 
